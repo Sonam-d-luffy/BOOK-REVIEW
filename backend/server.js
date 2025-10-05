@@ -1,36 +1,46 @@
-import mongoose from "mongoose";
-import express from "express";
-import cors from 'cors'
-import dotenv from 'dotenv'
-import loginRoute from './routes/login.js'
-import bookRoute from './routes/book.js'
-import reviewRoute from './routes/review.js'
-import { protect } from "./middleware/authMiddleware.js";
-import cookieParser from 'cookie-parser';
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
 
+dotenv.config();
 
-dotenv.config()
+const app = express();
 
+// List of allowed origins
+const allowedOrigins = [
+  process.env.FRONTEND_URL,           // https://book-review-lake.vercel.app
+  'http://localhost:5173'             // local dev (Vite default)
+];
 
-
-const app = express()
-
+// CORS configuration
 app.use(cors({
-  origin: process.env.FRONTEND_URL, // frontend origin
-  credentials: true,              // allow cookies
+  origin: function(origin, callback){
+    // Allow requests with no origin (like Postman or server-to-server)
+    if(!origin) return callback(null, true);
+
+    if(allowedOrigins.includes(origin)){
+      callback(null, true);
+    } else {
+      callback(new Error('CORS policy: This origin is not allowed'));
+    }
+  },
+  credentials: true, // allow cookies
 }));
-app.use(express.json())
+
+// Middleware
+app.use(express.json());
 app.use(cookieParser());
-app.use('/api' ,loginRoute)
-app.use('/api/books',protect, bookRoute)
-app.use('/api/review',protect, reviewRoute)
 
+// Your routes
+app.use('/api', loginRoute);
+app.use('/api/books', protect, bookRoute);
+app.use('/api/review', protect, reviewRoute);
 
-
+// MongoDB connection
 mongoose.connect(process.env.MONGO_URL)
-.then(() => console.log('Database conncted'))
-.catch((err) => console.error(err))
+  .then(() => console.log('Database connected'))
+  .catch(err => console.error(err));
 
-app.listen(process.env.PORT || 5000 , () => {
-    console.log('server is running')
-})
+// Start server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
